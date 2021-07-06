@@ -16,6 +16,7 @@ from tensorflow.keras.models import Model
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_samples
 import sys
+import os
 
 
 def interest_outlier(df):
@@ -515,6 +516,8 @@ def run(datasets_dictionary, models, all_one_dataset, all_one_preprocessing):
 if __name__ == '__main__':
     warnings.filterwarnings("ignore")
     print('Start')
+
+    os.system("../download_datasets.sh")
 
     models_svdd = {
         'SVDD_RBF_0.05_scale': SVDD(kernel='rbf', nu=0.05, gamma='scale')
