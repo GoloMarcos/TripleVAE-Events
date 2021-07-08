@@ -534,11 +534,10 @@ def make_prepro_evaluate(df_train, df_test, df_out, preprocessing, line_paramete
 def preprocessing_evaluate(datasets_dictionary, dataset, preprocessing, models):
     path_results = '../results/'
     num_train = 2000
-    line_parameters = ''
-    cluster_matrix = [[2, 4, 6, 8, 10]]  # , [3, 5, 7, 9, 11], [2, 3, 4, 5, 6, 7, 8, 9, 10, 11]]
-    epochs = [5]  # , 10, 25]
-    arqs = [[384, 128]]  # , [256], [128], [64, 2]]
-    operators = ['multiply']  # , 'average', 'subtract', 'add', 'concatenate']
+    cluster_matrix = [[3, 6, 9, 12], [2, 4, 6, 8, 10], [3, 5, 7, 9, 11], [2, 3, 4, 5, 6, 7, 8, 9, 10, 11]]
+    epochs = [5, 8, 10, 25]
+    arqs = [[384, 128], [128], [64, 2], [384, 256, 64]]
+    operators = ['multiply', 'average', 'subtract', 'add', 'concatenate']
 
     df_int, df_out = interest_outlier(datasets_dictionary[dataset])
 
