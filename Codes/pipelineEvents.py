@@ -610,7 +610,40 @@ if __name__ == '__main__':
     os.system("../download_datasets.sh")
 
     models_svdd = {
-        'SVDD_RBF_0.05_scale': SVDD(kernel='rbf', nu=0.05, gamma='scale')
+        'SVDD_Linear_scale': SVDD(kernel='linear', gamma='scale'),
+        'SVDD_Linear_auto': SVDD(kernel='linear', gamma='auto'),
+        'SVDD_Sigmoid_scale': SVDD(kernel='sigmoid', gamma='scale'),
+        'SVDD_Sigmoid_auto': SVDD(kernel='sigmoid', gamma='auto'),
+        'SVDD_Poly_2_scale': SVDD(kernel='poly', degree=2, gamma='scale'),
+        'SVDD_Poly_2_auto': SVDD(kernel='poly', degree=2, gamma='auto'),
+        'SVDD_Poly_3_scale': SVDD(kernel='poly', degree=3, gamma='scale'),
+        'SVDD_Poly_3_auto': SVDD(kernel='poly', degree=3, gamma='auto'),
+        'SVDD_Poly_4_scale': SVDD(kernel='poly', degree=4, gamma='scale'),
+        'SVDD_Poly_4_auto': SVDD(kernel='poly', degree=4, gamma='auto'),
+        'SVDD_RBF_0.001_scale': SVDD(kernel='rbf', nu=0.001, gamma='scale'),
+        'SVDD_RBF_0.01_scale': SVDD(kernel='rbf', nu=0.01, gamma='scale'),
+        'SVDD_RBF_0.05_scale': SVDD(kernel='rbf', nu=0.05, gamma='scale'),
+        'SVDD_RBF_0.1_scale': SVDD(kernel='rbf', nu=0.1, gamma='scale'),
+        'SVDD_RBF_0.2_scale': SVDD(kernel='rbf', nu=0.2, gamma='scale'),
+        'SVDD_RBF_0.3_scale': SVDD(kernel='rbf', nu=0.3, gamma='scale'),
+        'SVDD_RBF_0.4_scale': SVDD(kernel='rbf', nu=0.4, gamma='scale'),
+        'SVDD_RBF_0.5_scale': SVDD(kernel='rbf', nu=0.5, gamma='scale'),
+        'SVDD_RBF_0.6_scale': SVDD(kernel='rbf', nu=0.6, gamma='scale'),
+        'SVDD_RBF_0.7_scale': SVDD(kernel='rbf', nu=0.7, gamma='scale'),
+        'SVDD_RBF_0.8_scale': SVDD(kernel='rbf', nu=0.8, gamma='scale'),
+        'SVDD_RBF_0.9_scale': SVDD(kernel='rbf', nu=0.9, gamma='scale'),
+        'SVDD_RBF_0.001_auto': SVDD(kernel='rbf', nu=0.001, gamma='auto'),
+        'SVDD_RBF_0.01_auto': SVDD(kernel='rbf', nu=0.01, gamma='auto'),
+        'SVDD_RBF_0.05_auto': SVDD(kernel='rbf', nu=0.05, gamma='auto'),
+        'SVDD_RBF_0.1_auto': SVDD(kernel='rbf', nu=0.1, gamma='auto'),
+        'SVDD_RBF_0.2_auto': SVDD(kernel='rbf', nu=0.2, gamma='auto'),
+        'SVDD_RBF_0.3_auto': SVDD(kernel='rbf', nu=0.3, gamma='auto'),
+        'SVDD_RBF_0.4_auto': SVDD(kernel='rbf', nu=0.4, gamma='auto'),
+        'SVDD_RBF_0.5_auto': SVDD(kernel='rbf', nu=0.5, gamma='auto'),
+        'SVDD_RBF_0.6_auto': SVDD(kernel='rbf', nu=0.6, gamma='auto'),
+        'SVDD_RBF_0.7_auto': SVDD(kernel='rbf', nu=0.7, gamma='auto'),
+        'SVDD_RBF_0.8_auto': SVDD(kernel='rbf', nu=0.8, gamma='auto'),
+        'SVDD_RBF_0.9_auto': SVDD(kernel='rbf', nu=0.9, gamma='auto')
     }
 
     all_one_dataset = sys.argv[1]
