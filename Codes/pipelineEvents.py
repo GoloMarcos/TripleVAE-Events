@@ -28,7 +28,7 @@ def interest_outlier(df):
 
 def train_test_split_one_class(df_int, num_train):
     df_train = df_int[:num_train]
-    df_test = df_int[:num_train]
+    df_test = df_int[num_train:]
 
     return df_train, df_test
 
@@ -70,6 +70,7 @@ def make_density_information(cluster_list, df_train, df_test, df_outlier):
 
 
 def make_representation(df_train, df_test, df_outlier, representation_type, cluster_list, parameter_list):
+
     df_train_embedding = np.array(df_train['DBERTML'].to_list())
     df_train_latlong = np.array(df_train['lat_long'].to_list())
     df_test_embedding = np.array(df_test['DBERTML'].to_list())
@@ -81,44 +82,156 @@ def make_representation(df_train, df_test, df_outlier, representation_type, clus
                                                                             df_test_embedding,
                                                                             df_outlier_embedding)
 
-    if representation_type == 'Concatenate':
+    if representation_type == 'TripleVAE':
 
-        x_train = np.concatenate([df_train_embedding, density_train, df_train_latlong])
-        x_test = np.concatenate([df_test_embedding, density_test, df_test_latlong])
-        x_outlier = np.concatenate([df_outlier_embedding, density_outlier, df_outlier_latlong])
-
-    else:
         epoch = parameter_list[0]
         arq = parameter_list[1]
         operator = parameter_list[2]
 
-        if representation_type == 'TripleAE' or representation_type == 'TripleAVE':
+        tf.random.set_seed(1)
+
+        tvae, encoder, decoder = triplevae(arq, len(df_train_embedding[0]), len(cluster_list),
+                                           len(df_train_latlong[0]), operator)
+
+        tvae.fit([df_train_embedding, density_train, df_train_latlong],
+                 [df_train_embedding, density_train, df_train_latlong], epochs=epoch, batch_size=32, verbose=0)
+
+        x_train, _, _ = encoder.predict([df_train_embedding, density_train, df_train_latlong])
+        x_test, _, _ = encoder.predict([df_test_embedding, density_test, df_test_latlong])
+        x_outlier, _, _ = encoder.predict([df_outlier_embedding, density_outlier, df_outlier_latlong])
+
+    else:
+
+        x_train = np.concatenate([df_train_embedding, density_train, df_train_latlong], axis=1)
+        x_test = np.concatenate([df_test_embedding, density_test, df_test_latlong], axis=1)
+        x_outlier = np.concatenate([df_outlier_embedding, density_outlier, df_outlier_latlong], axis=1)
+
+        if representation_type == 'AE':
+
+            epoch = parameter_list[0]
+            arq = parameter_list[1]
+
             tf.random.set_seed(1)
 
-            tae, encoder = triple_autoencoder(arq, len(df_train_embedding[0]), len(cluster_list),
-                                              len(df_train_latlong[0]), operator)
+            ae, encoder = autoencoder(arq, len(x_train[0]))
 
-            tae.fit([df_train_embedding, density_train, df_train_latlong],
-                    [df_train_embedding, density_train, df_train_latlong], epochs=epoch, batch_size=32, verbose=0)
+            ae.fit(x_train, x_train, epochs=epoch, batch_size=32, verbose=0)
 
-            x_train = encoder.predict([df_train_embedding, density_train, df_train_latlong])
-            x_test = encoder.predict([df_test_embedding, density_test, df_test_latlong])
-            x_outlier = encoder.predict([df_outlier_embedding, density_outlier, df_outlier_latlong])
+            x_train = encoder.predict(np.array(x_train))
+            x_test = encoder.predict(np.array(x_test))
+            x_outlier = encoder.predict(np.array(x_outlier))
 
-        else:
+        elif representation_type == 'VAE':
+            epoch = parameter_list[0]
+            arq = parameter_list[1]
+
             tf.random.set_seed(1)
 
-            tvae, encoder, decoder = triplevae(arq, len(df_train_embedding[0]), len(cluster_list),
-                                               len(df_train_latlong[0]), operator)
+            vae, encoder, decoder = variationalautoencoder(arq, len(x_train[0]))
 
-            tvae.fit([df_train_embedding, density_train, df_train_latlong],
-                     [df_train_embedding, density_train, df_train_latlong], epochs=epoch, batch_size=32, verbose=0)
+            vae.fit(x_train, x_train, epochs=epoch, batch_size=32, verbose=0)
 
-            x_train, _, _ = encoder.predict([df_train_embedding, density_train, df_train_latlong])
-            x_test, _, _ = encoder.predict([df_test_embedding, density_test, df_test_latlong])
-            x_outlier, _, _ = encoder.predict([df_outlier_embedding, density_outlier, df_outlier_latlong])
+            x_train, _, _ = encoder.predict(np.array(x_train))
+            x_test, _, _ = encoder.predict(np.array(x_test))
+            x_outlier, _, _ = encoder.predict(np.array(x_outlier))
 
     return x_train, x_test, x_outlier
+
+
+class VAE(keras.Model):
+    def __init__(self, encoder, decoder, factor_multiply, **kwargs):
+        super(VAE, self).__init__(**kwargs)
+        self.encoder = encoder
+        self.decoder = decoder
+        self.factor_multiply = factor_multiply
+
+    def train_step(self, data):
+        if isinstance(data, tuple):
+            data = data[0]
+        with tf.GradientTape() as tape:
+            z_mean, z_log_var, z = self.encoder(data)
+            reconstruction = self.decoder(z)
+            reconstruction_loss = tf.reduce_mean(
+                keras.losses.mean_squared_error(data, reconstruction)
+            )
+            reconstruction_loss *= self.factor_multiply
+            kl_loss = 1 + z_log_var - tf.square(z_mean) - tf.exp(z_log_var)
+            kl_loss = tf.reduce_mean(kl_loss)
+            kl_loss *= -0.5
+            total_loss = reconstruction_loss + kl_loss
+
+            grads = tape.gradient(total_loss, self.trainable_weights)
+            self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
+
+            return {
+                "loss": total_loss,
+                "reconstruction_loss": reconstruction_loss,
+                "kl_loss": kl_loss,
+            }
+
+
+def encoder_vae(arq, input_dim):
+    encoder_inputs = keras.Input(shape=(input_dim,), name='encoder_input')
+
+    if len(arq) == 3:
+        first_dense = Dense(arq[0], activation="linear")(encoder_inputs)
+
+        second_dense = Dense(arq[1], activation="linear")(first_dense)
+
+        z_mean = layers.Dense(arq[2], name="Z_mean")(second_dense)
+        z_log_var = layers.Dense(arq[2], name="Z_log_var")(second_dense)
+        z = Sampling()([z_mean, z_log_var])
+
+    elif len(arq) == 2:
+        first_dense = Dense(arq[0], activation="linear")(encoder_inputs)
+
+        z_mean = layers.Dense(arq[1], name="Z_mean")(first_dense)
+        z_log_var = layers.Dense(arq[1], name="Z_log_var")(first_dense)
+        z = Sampling()([z_mean, z_log_var])
+
+    else:  # len(arq) == 1
+        z_mean = layers.Dense(arq[0], name="Z_mean")(encoder_inputs)
+        z_log_var = layers.Dense(arq[0], name="Z_log_var")(encoder_inputs)
+        z = Sampling()([z_mean, z_log_var])
+
+    encoder = keras.Model([encoder_inputs], [z_mean, z_log_var, z], name="Encoder")
+
+    return encoder
+
+
+def decoder_vae(arq, output_dim):
+    latent_inputs = keras.Input(shape=(arq[(len(arq) - 1)],), name='decoder_input')
+
+    if len(arq) == 3:
+        first_dense = Dense(arq[1], activation="linear")(latent_inputs)
+
+        second_dense = Dense(arq[0], activation="linear")(first_dense)
+
+        decoder_outputs = Dense(output_dim, activation="linear")(second_dense)
+
+    elif len(arq) == 2:
+        first_dense = Dense(arq[0], activation="linear")(latent_inputs)
+
+        decoder_outputs = Dense(output_dim, activation="linear")(first_dense)
+
+    else:  # len(arq) == 1
+        decoder_outputs = Dense(output_dim, activation="linear")(latent_inputs)
+
+    decoder = keras.Model(latent_inputs, decoder_outputs, name="decoder")
+
+    return decoder
+
+
+def variationalautoencoder(arq, input_dim):
+    encoder = encoder_vae(arq, input_dim)
+
+    decoder = decoder_vae(arq, input_dim)
+
+    vae = VAE(encoder, decoder, input_dim)
+
+    vae.compile(optimizer=keras.optimizers.Adam())
+
+    return vae, encoder, decoder
 
 
 def init_metrics():
@@ -209,31 +322,11 @@ def write_results(metrics, file_name, line_parameters, path):
     file_.close()
 
 
-def triple_autoencoder(arq, first_input_len, second_input_len, third_input_len, operator):
-    first_input = Input(shape=(first_input_len,), name='first_input_encoder')
-
-    second_input = Input(shape=(second_input_len,), name='second_input_encoder')
-
-    third_input = Input(shape=(third_input_len,), name='third_input_encoder')
-
-    l1 = Dense(np.max([first_input_len, second_input_len, third_input_len]), activation='linear')(first_input)
-    l2 = Dense(np.max([first_input_len, second_input_len, third_input_len]), activation='linear')(second_input)
-    l3 = Dense(np.max([first_input_len, second_input_len, third_input_len]), activation='linear')(third_input)
-
-    fusion = None
-    if operator == 'concatenate':
-        fusion = concatenate([l1, l2, l3])
-    if operator == 'multiply':
-        fusion = multiply([l1, l2, l3])
-    if operator == 'average':
-        fusion = average([l1, l2, l3])
-    if operator == 'subtract':
-        fusion = subtract([l1, l2, l3])
-    if operator == 'add':
-        fusion = add([l1, l2, l3])
+def autoencoder(arq, input_length):
+    encoder_inputs = Input(shape=(input_length,), name='encoder_input')
 
     if len(arq) == 3:
-        first_dense_encoder = Dense(arq[0], activation="linear")(fusion)
+        first_dense_encoder = Dense(arq[0], activation="linear")(encoder_inputs)
 
         second_dense_encoder = Dense(arq[1], activation="linear")(first_dense_encoder)
 
@@ -243,42 +336,29 @@ def triple_autoencoder(arq, first_input_len, second_input_len, third_input_len, 
 
         second_dense_decoder = Dense(arq[0], activation="linear")(first_dense_decoder)
 
-        first_decoder_output = Dense(first_input_len, activation="linear")(second_dense_decoder)
-
-        second_decoder_output = Dense(second_input_len, activation="linear")(second_dense_decoder)
-
-        third_decoder_output = Dense(third_input_len, activation="linear")(second_dense_decoder)
+        decoder_output = Dense(input_length, activation="linear")(second_dense_decoder)
 
     elif len(arq) == 2:
-        first_dense_encoder = Dense(arq[0], activation="linear")(fusion)
+        first_dense_encoder = Dense(arq[0], activation="linear")(encoder_inputs)
 
         encoded = Dense(arq[1], activation="linear")(first_dense_encoder)
 
         first_dense_decoder = Dense(arq[0], activation="linear")(encoded)
 
-        first_decoder_output = Dense(first_input_len, activation="linear")(first_dense_decoder)
-
-        second_decoder_output = Dense(second_input_len, activation="linear")(first_dense_decoder)
-
-        third_decoder_output = Dense(third_input_len, activation="linear")(first_dense_decoder)
+        decoder_output = Dense(input_length, activation="linear")(first_dense_decoder)
 
     else:  # len(arq) == 1
-        encoded = Dense(arq[0], activation="linear")(fusion)
+        encoded = Dense(arq[0], activation="linear")(encoder_inputs)
 
-        first_decoder_output = Dense(first_input_len, activation="linear")(encoded)
+        decoder_output = Dense(input_length, activation="linear")(encoded)
 
-        second_decoder_output = Dense(second_input_len, activation="linear")(encoded)
+    encoder = Model(encoder_inputs, encoded)
 
-        third_decoder_output = Dense(third_input_len, activation="linear")(encoded)
+    autoencoder_model = Model(encoder_inputs, decoder_output)
 
-    encoder = Model([first_input, second_input, third_input], encoded)
+    autoencoder_model.compile(optimizer=tensorflow.keras.optimizers.Adam(), loss='mse')
 
-    tae = Model([first_input, second_input, third_input],
-                [first_decoder_output, second_decoder_output, third_decoder_output])
-
-    tae.compile(optimizer=tensorflow.keras.optimizers.Adam(), loss='mse')
-
-    return tae, encoder
+    return autoencoder_model, encoder
 
 
 class Sampling(layers.Layer):
@@ -339,20 +419,21 @@ class TVAE(keras.Model):
         return {
             "total loss": total_loss,
             "embedding loss": embedding_loss,
-            "denisty loss": density_loss,
+            "density loss": density_loss,
             "Lat-Long loss": latlong_loss,
             "kl loss": kl_loss
         }
 
 
 def encoder_tvae(arq, embedding_dim, density_dim, latlong_dim, operator):
+
     embedding_inputs = keras.Input(shape=(embedding_dim,), name='first_input_encoder')
     density_inputs = keras.Input(shape=(density_dim,), name='second_input_encoder')
     latlong_inputs = keras.Input(shape=(latlong_dim,), name='third_input_encoder')
 
-    l1 = Dense(np.max([embedding_dim, density_dim, latlong_inputs]), activation='linear')(embedding_inputs)
-    l2 = Dense(np.max([embedding_dim, density_dim, latlong_inputs]), activation='linear')(density_inputs)
-    l3 = Dense(np.max([embedding_dim, density_dim, latlong_inputs]), activation='linear')(latlong_inputs)
+    l1 = Dense(np.max([embedding_dim, density_dim, latlong_dim]), activation='linear')(embedding_inputs)
+    l2 = Dense(np.max([embedding_dim, density_dim, latlong_dim]), activation='linear')(density_inputs)
+    l3 = Dense(np.max([embedding_dim, density_dim, latlong_dim]), activation='linear')(latlong_inputs)
 
     fusion = None
     if operator == 'concatenate':
@@ -454,10 +535,10 @@ def preprocessing_evaluate(datasets_dictionary, dataset, preprocessing, models):
     path_results = '../results/'
     num_train = 2000
     line_parameters = ''
-    cluster_matrix = [[2, 4, 6, 8, 10], [3, 5, 7, 9, 11], [2, 3, 4, 5, 6, 7, 8, 9, 10, 11]]
-    epochs = [5, 10, 25]
-    arqs = [[384, 128], [256], [128]]
-    operators = ['concatenate', 'multiply', 'average', 'subtract', 'add']
+    cluster_matrix = [[2, 4, 6, 8, 10]]  # , [3, 5, 7, 9, 11], [2, 3, 4, 5, 6, 7, 8, 9, 10, 11]]
+    epochs = [5]  # , 10, 25]
+    arqs = [[384, 128]]  # , [256], [128], [64, 2]]
+    operators = ['multiply']  # , 'average', 'subtract', 'add', 'concatenate']
 
     df_int, df_out = interest_outlier(datasets_dictionary[dataset])
 
@@ -465,28 +546,37 @@ def preprocessing_evaluate(datasets_dictionary, dataset, preprocessing, models):
 
     file_name = dataset + '_' + preprocessing
 
-    if preprocessing == 'Concatenate':
-        make_prepro_evaluate(df_train, df_test, df_out, preprocessing, line_parameters, file_name, path_results,
-                             models)
-    else:
-        for epoch in epochs:
+    for cluster_list in cluster_matrix:
 
-            for arq in arqs:
+        if preprocessing == 'Concatenate':
+            line_parameters = str(cluster_list)
 
-                for operator in operators:
+            make_prepro_evaluate(df_train, df_test, df_out, preprocessing, line_parameters, file_name, path_results,
+                                 models, cluster_list=cluster_list)
+        else:
+            for epoch in epochs:
 
-                    for cluster_list in cluster_matrix:
-                        print(preprocessing + ' ' + str(
-                            epoch) + ' ' + str(arq) + ' ' + operator + ' ' + str(cluster_list))
+                for arq in arqs:
 
-                        line_parameters = str(epoch) + '_' + str(arq) + '_' + str(cluster_list) + '_' + str(
-                            operator)
+                    if preprocessing == 'AE' or preprocessing == 'VAE':
+                        line_parameters = str(cluster_list) + '_' + str(epoch) + '_' + str(arq)
 
-                        parameter_list = (epoch, arq, operator)
+                        parameter_list = (epoch, arq)
 
                         make_prepro_evaluate(df_train, df_test, df_out, preprocessing, line_parameters,
                                              file_name, path_results, models, cluster_list=cluster_list,
                                              parameter_list=parameter_list)
+
+                    else:
+                        for operator in operators:
+                            line_parameters = str(cluster_list) + '_' + str(epoch) + '_' + str(arq) + '_' + str(
+                                operator)
+
+                            parameter_list = (epoch, arq, operator)
+
+                            make_prepro_evaluate(df_train, df_test, df_out, preprocessing, line_parameters,
+                                                 file_name, path_results, models, cluster_list=cluster_list,
+                                                 parameter_list=parameter_list)
 
     del df_train
     del df_test
@@ -496,7 +586,7 @@ def preprocessing_evaluate(datasets_dictionary, dataset, preprocessing, models):
 
 
 def run(datasets_dictionary, models, all_one_dataset, all_one_preprocessing):
-    prepros = ['Concatenate', 'TripleAE', 'TripleVAE']
+    prepros = ['Concatenate', 'AE', 'VAE', 'TripleVAE']
 
     if all_one_dataset != 'All':
         if all_one_preprocessing != 'All':
