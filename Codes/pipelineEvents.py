@@ -11,7 +11,7 @@ import tensorflow
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
-from tensorflow.keras.layers import Dense, Input, concatenate, multiply, average, subtract, add
+from tensorflow.keras.layers import Dense, Input, concatenate, multiply, average, subtract, add, LayerNormalization
 from tensorflow.keras.models import Model
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_samples
@@ -122,6 +122,7 @@ def make_representation(df_train, df_test, df_outlier, representation_type, clus
             x_outlier = encoder.predict(np.array(x_outlier))
 
         elif representation_type == 'VAE':
+
             epoch = parameter_list[0]
             arq = parameter_list[1]
 
@@ -129,7 +130,7 @@ def make_representation(df_train, df_test, df_outlier, representation_type, clus
 
             vae, encoder, decoder = variationalautoencoder(arq, len(x_train[0]))
 
-            vae.fit(x_train, x_train, epochs=epoch, batch_size=32, verbose=0)
+            vae.fit(x_train, x_train, epochs=epoch, batch_size=32, verbose=1)
 
             x_train, _, _ = encoder.predict(np.array(x_train))
             x_test, _, _ = encoder.predict(np.array(x_test))
@@ -283,6 +284,8 @@ def evaluate_model(x_train, x_test, x_outlier, model):
 
 
 def evaluate_models(models, reps, file_name, line_parameters, path):
+    print('evaluating models')
+
     for model in tqdm(models):
         lp = model + '_' + line_parameters
         fn = file_name + '_' + model.split('_')[0] + '.csv'
@@ -400,13 +403,13 @@ class TVAE(keras.Model):
                 keras.losses.mean_squared_error(data[1], reconstruction[1])
             )
 
-            density_loss *= self.factor_multiply_latlong
+            density_loss *= self.factor_multiply_density
 
             latlong_loss = tf.reduce_mean(
                 keras.losses.mean_squared_error(data[2], reconstruction[2])
             )
 
-            latlong_loss *= self.factor_multiply_density
+            latlong_loss *= self.factor_multiply_latlong
 
             kl_loss = 1 + z_log_var - tf.square(z_mean) - tf.exp(z_log_var)
             kl_loss = tf.reduce_mean(kl_loss)
@@ -426,14 +429,15 @@ class TVAE(keras.Model):
 
 
 def encoder_tvae(arq, embedding_dim, density_dim, latlong_dim, operator):
-
     embedding_inputs = keras.Input(shape=(embedding_dim,), name='first_input_encoder')
     density_inputs = keras.Input(shape=(density_dim,), name='second_input_encoder')
     latlong_inputs = keras.Input(shape=(latlong_dim,), name='third_input_encoder')
 
+    lat_long_norm = LayerNormalization(axis=[0, 1], center=False, scale=False)(latlong_inputs)
+
     l1 = Dense(np.max([embedding_dim, density_dim, latlong_dim]), activation='linear')(embedding_inputs)
     l2 = Dense(np.max([embedding_dim, density_dim, latlong_dim]), activation='linear')(density_inputs)
-    l3 = Dense(np.max([embedding_dim, density_dim, latlong_dim]), activation='linear')(latlong_inputs)
+    l3 = Dense(np.max([embedding_dim, density_dim, latlong_dim]), activation='linear')(lat_long_norm)
 
     fusion = None
     if operator == 'concatenate':
@@ -443,7 +447,8 @@ def encoder_tvae(arq, embedding_dim, density_dim, latlong_dim, operator):
     if operator == 'average':
         fusion = average([l1, l2, l3])
     if operator == 'subtract':
-        fusion = subtract([l1, l2, l3])
+        fusion = subtract([l1, l2])
+        fusion = subtract([fusion, l3])
     if operator == 'add':
         fusion = add([l1, l2, l3])
 
@@ -535,9 +540,9 @@ def preprocessing_evaluate(datasets_dictionary, dataset, preprocessing, models):
     path_results = '../results/'
     num_train = 2000
     cluster_matrix = [[3, 6, 9, 12], [2, 4, 6, 8, 10], [3, 5, 7, 9, 11], [2, 3, 4, 5, 6, 7, 8, 9, 10, 11]]
-    epochs = [5, 8, 10, 25]
-    arqs = [[384, 128], [128], [64, 2], [384, 256, 64]]
-    operators = ['multiply', 'average', 'subtract', 'add', 'concatenate']
+    epochs = [5, 10, 25, 50]
+    arqs = [[384, 128], [256, 64], [64, 2], [128]]
+    operators = ['multiply', 'concatenate', 'subtract', 'add', 'average']
 
     df_int, df_out = interest_outlier(datasets_dictionary[dataset])
 
