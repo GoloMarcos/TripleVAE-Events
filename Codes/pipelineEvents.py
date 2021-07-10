@@ -130,7 +130,7 @@ def make_representation(df_train, df_test, df_outlier, representation_type, clus
 
             vae, encoder, decoder = variationalautoencoder(arq, len(x_train[0]))
 
-            vae.fit(x_train, x_train, epochs=epoch, batch_size=32, verbose=1)
+            vae.fit(x_train, x_train, epochs=epoch, batch_size=32, verbose=0)
 
             x_train, _, _ = encoder.predict(np.array(x_train))
             x_test, _, _ = encoder.predict(np.array(x_test))
@@ -172,7 +172,9 @@ class VAE(keras.Model):
 
 
 def encoder_vae(arq, input_dim):
-    encoder_inputs = keras.Input(shape=(input_dim,), name='encoder_input')
+    encoder_inputs_old = keras.Input(shape=(input_dim,), name='encoder_input')
+
+    encoder_inputs = LayerNormalization(axis=[0, 1], center=False, scale=False)(encoder_inputs_old)
 
     if len(arq) == 3:
         first_dense = Dense(arq[0], activation="linear")(encoder_inputs)
@@ -195,7 +197,7 @@ def encoder_vae(arq, input_dim):
         z_log_var = layers.Dense(arq[0], name="Z_log_var")(encoder_inputs)
         z = Sampling()([z_mean, z_log_var])
 
-    encoder = keras.Model([encoder_inputs], [z_mean, z_log_var, z], name="Encoder")
+    encoder = keras.Model([encoder_inputs_old], [z_mean, z_log_var, z], name="Encoder")
 
     return encoder
 
