@@ -328,7 +328,9 @@ def write_results(metrics, file_name, line_parameters, path):
 
 
 def autoencoder(arq, input_length):
-    encoder_inputs = Input(shape=(input_length,), name='encoder_input')
+    encoder_inputs_old = Input(shape=(input_length,), name='encoder_input')
+
+    encoder_inputs = LayerNormalization(axis=[0, 1], center=False, scale=False)(encoder_inputs_old)
 
     if len(arq) == 3:
         first_dense_encoder = Dense(arq[0], activation="linear")(encoder_inputs)
@@ -357,9 +359,9 @@ def autoencoder(arq, input_length):
 
         decoder_output = Dense(input_length, activation="linear")(encoded)
 
-    encoder = Model(encoder_inputs, encoded)
+    encoder = Model(encoder_inputs_old, encoded)
 
-    autoencoder_model = Model(encoder_inputs, decoder_output)
+    autoencoder_model = Model(encoder_inputs_old, decoder_output)
 
     autoencoder_model.compile(optimizer=tensorflow.keras.optimizers.Adam(), loss='mse')
 
