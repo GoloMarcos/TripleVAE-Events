@@ -70,71 +70,87 @@ def make_density_information(cluster_list, df_train, df_test, df_outlier):
 
 
 def make_representation(df_train, df_test, df_outlier, representation_type, cluster_list, parameter_list):
+    if representation_type == 'DBERTML':
+        x_train = np.array(df_train['DBERTML'].to_list())
+        x_test = np.array(df_test['DBERTML'].to_list())
+        x_outlier = np.array(df_outlier['DBERTML'].to_list())
 
-    df_train_embedding = np.array(df_train['DBERTML'].to_list())
-    df_train_latlong = np.array(df_train['lat_long'].to_list())
-    df_test_embedding = np.array(df_test['DBERTML'].to_list())
-    df_test_latlong = np.array(df_test['lat_long'].to_list())
-    df_outlier_embedding = np.array(df_outlier['DBERTML'].to_list())
-    df_outlier_latlong = np.array(df_outlier['lat_long'].to_list())
+    elif representation_type == 'Lat-Long':
+        x_train = np.array(df_train['lat_long'].to_list())
+        x_test = np.array(df_test['lat_long'].to_list())
+        x_outlier = np.array(df_outlier['lat_long'].to_list())
 
-    density_train, density_test, density_outlier = make_density_information(cluster_list, df_train_embedding,
-                                                                            df_test_embedding,
-                                                                            df_outlier_embedding)
-
-    if representation_type == 'TripleVAE':
-
-        epoch = parameter_list[0]
-        arq = parameter_list[1]
-        operator = parameter_list[2]
-
-        tf.random.set_seed(1)
-
-        tvae, encoder, decoder = triplevae(arq, len(df_train_embedding[0]), len(cluster_list),
-                                           len(df_train_latlong[0]), operator)
-
-        tvae.fit([df_train_embedding, density_train, df_train_latlong],
-                 [df_train_embedding, density_train, df_train_latlong], epochs=epoch, batch_size=32, verbose=0)
-
-        x_train, _, _ = encoder.predict([df_train_embedding, density_train, df_train_latlong])
-        x_test, _, _ = encoder.predict([df_test_embedding, density_test, df_test_latlong])
-        x_outlier, _, _ = encoder.predict([df_outlier_embedding, density_outlier, df_outlier_latlong])
-
+    elif representation_type == 'Density':
+        df_train_embedding = np.array(df_train['DBERTML'].to_list())
+        df_test_embedding = np.array(df_test['DBERTML'].to_list())
+        df_outlier_embedding = np.array(df_outlier['DBERTML'].to_list())
+        x_train, x_test, x_outlier = make_density_information(cluster_list, df_train_embedding, df_test_embedding,
+                                                              df_outlier_embedding)
     else:
+        df_train_embedding = np.array(df_train['DBERTML'].to_list())
+        df_train_latlong = np.array(df_train['lat_long'].to_list())
+        df_test_embedding = np.array(df_test['DBERTML'].to_list())
+        df_test_latlong = np.array(df_test['lat_long'].to_list())
+        df_outlier_embedding = np.array(df_outlier['DBERTML'].to_list())
+        df_outlier_latlong = np.array(df_outlier['lat_long'].to_list())
 
-        x_train = np.concatenate([df_train_embedding, density_train, df_train_latlong], axis=1)
-        x_test = np.concatenate([df_test_embedding, density_test, df_test_latlong], axis=1)
-        x_outlier = np.concatenate([df_outlier_embedding, density_outlier, df_outlier_latlong], axis=1)
+        density_train, density_test, density_outlier = make_density_information(cluster_list, df_train_embedding,
+                                                                                df_test_embedding,
+                                                                                df_outlier_embedding)
 
-        if representation_type == 'AE':
-
-            epoch = parameter_list[0]
-            arq = parameter_list[1]
-
-            tf.random.set_seed(1)
-
-            ae, encoder = autoencoder(arq, len(x_train[0]))
-
-            ae.fit(x_train, x_train, epochs=epoch, batch_size=32, verbose=0)
-
-            x_train = encoder.predict(np.array(x_train))
-            x_test = encoder.predict(np.array(x_test))
-            x_outlier = encoder.predict(np.array(x_outlier))
-
-        elif representation_type == 'VAE':
+        if representation_type == 'TripleVAE':
 
             epoch = parameter_list[0]
             arq = parameter_list[1]
+            operator = parameter_list[2]
 
             tf.random.set_seed(1)
 
-            vae, encoder, decoder = variationalautoencoder(arq, len(x_train[0]))
+            tvae, encoder, decoder = triplevae(arq, len(df_train_embedding[0]), len(cluster_list),
+                                               len(df_train_latlong[0]), operator)
 
-            vae.fit(x_train, x_train, epochs=epoch, batch_size=32, verbose=0)
+            tvae.fit([df_train_embedding, density_train, df_train_latlong],
+                     [df_train_embedding, density_train, df_train_latlong], epochs=epoch, batch_size=32, verbose=0)
 
-            x_train, _, _ = encoder.predict(np.array(x_train))
-            x_test, _, _ = encoder.predict(np.array(x_test))
-            x_outlier, _, _ = encoder.predict(np.array(x_outlier))
+            x_train, _, _ = encoder.predict([df_train_embedding, density_train, df_train_latlong])
+            x_test, _, _ = encoder.predict([df_test_embedding, density_test, df_test_latlong])
+            x_outlier, _, _ = encoder.predict([df_outlier_embedding, density_outlier, df_outlier_latlong])
+
+        else:
+
+            x_train = np.concatenate([df_train_embedding, density_train, df_train_latlong], axis=1)
+            x_test = np.concatenate([df_test_embedding, density_test, df_test_latlong], axis=1)
+            x_outlier = np.concatenate([df_outlier_embedding, density_outlier, df_outlier_latlong], axis=1)
+
+            if representation_type == 'AE':
+
+                epoch = parameter_list[0]
+                arq = parameter_list[1]
+
+                tf.random.set_seed(1)
+
+                ae, encoder = autoencoder(arq, len(x_train[0]))
+
+                ae.fit(x_train, x_train, epochs=epoch, batch_size=32, verbose=0)
+
+                x_train = encoder.predict(np.array(x_train))
+                x_test = encoder.predict(np.array(x_test))
+                x_outlier = encoder.predict(np.array(x_outlier))
+
+            elif representation_type == 'VAE':
+
+                epoch = parameter_list[0]
+                arq = parameter_list[1]
+
+                tf.random.set_seed(1)
+
+                vae, encoder, decoder = variationalautoencoder(arq, len(x_train[0]))
+
+                vae.fit(x_train, x_train, epochs=epoch, batch_size=32, verbose=0)
+
+                x_train, _, _ = encoder.predict(np.array(x_train))
+                x_test, _, _ = encoder.predict(np.array(x_test))
+                x_outlier, _, _ = encoder.predict(np.array(x_outlier))
 
     return x_train, x_test, x_outlier
 
@@ -554,37 +570,44 @@ def preprocessing_evaluate(datasets_dictionary, dataset, preprocessing, models):
 
     file_name = dataset + '_' + preprocessing
 
-    for cluster_list in cluster_matrix:
+    line_parameters = ''
 
-        if preprocessing == 'Concatenate':
-            line_parameters = str(cluster_list)
+    if preprocessing == 'DBERTML' or 'Lat-Long':
+        make_prepro_evaluate(df_train, df_test, df_out, preprocessing, line_parameters, file_name, path_results,
+                             models)
+    else:
+        for cluster_list in cluster_matrix:
 
-            make_prepro_evaluate(df_train, df_test, df_out, preprocessing, line_parameters, file_name, path_results,
-                                 models, cluster_list=cluster_list)
-        else:
-            for epoch in epochs:
+            if preprocessing == 'Concatenate' or 'Density':
 
-                for arq in arqs:
+                line_parameters = str(cluster_list)
 
-                    if preprocessing == 'AE' or preprocessing == 'VAE':
-                        line_parameters = str(cluster_list) + '_' + str(epoch) + '_' + str(arq)
+                make_prepro_evaluate(df_train, df_test, df_out, preprocessing, line_parameters, file_name, path_results,
+                                     models, cluster_list=cluster_list)
+            else:
+                for epoch in epochs:
 
-                        parameter_list = (epoch, arq)
+                    for arq in arqs:
 
-                        make_prepro_evaluate(df_train, df_test, df_out, preprocessing, line_parameters,
-                                             file_name, path_results, models, cluster_list=cluster_list,
-                                             parameter_list=parameter_list)
+                        if preprocessing == 'AE' or preprocessing == 'VAE':
+                            line_parameters = str(cluster_list) + '_' + str(epoch) + '_' + str(arq)
 
-                    else:
-                        for operator in operators:
-                            line_parameters = str(cluster_list) + '_' + str(epoch) + '_' + str(arq) + '_' + str(
-                                operator)
-
-                            parameter_list = (epoch, arq, operator)
+                            parameter_list = (epoch, arq)
 
                             make_prepro_evaluate(df_train, df_test, df_out, preprocessing, line_parameters,
                                                  file_name, path_results, models, cluster_list=cluster_list,
                                                  parameter_list=parameter_list)
+
+                        else:
+                            for operator in operators:
+                                line_parameters = str(cluster_list) + '_' + str(epoch) + '_' + str(arq) + '_' + str(
+                                    operator)
+
+                                parameter_list = (epoch, arq, operator)
+
+                                make_prepro_evaluate(df_train, df_test, df_out, preprocessing, line_parameters,
+                                                     file_name, path_results, models, cluster_list=cluster_list,
+                                                     parameter_list=parameter_list)
 
     del df_train
     del df_test
@@ -594,7 +617,7 @@ def preprocessing_evaluate(datasets_dictionary, dataset, preprocessing, models):
 
 
 def run(datasets_dictionary, models, all_one_dataset, all_one_preprocessing):
-    prepros = ['Concatenate', 'AE', 'VAE', 'TripleVAE']
+    prepros = ['DBERTML', 'Density', 'Lat-Long', 'Concatenate', 'AE', 'VAE', 'TripleVAE']
 
     if all_one_dataset != 'All':
         if all_one_preprocessing != 'All':
