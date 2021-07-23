@@ -572,16 +572,15 @@ def preprocessing_evaluate(datasets_dictionary, dataset, preprocessing, models):
 
     line_parameters = ''
 
-    if preprocessing == 'DBERTML' or 'Lat-Long':
+    if preprocessing == 'DBERTML' or preprocessing == 'Lat-Long':
         make_prepro_evaluate(df_train, df_test, df_out, preprocessing, line_parameters, file_name, path_results,
                              models)
     else:
         for cluster_list in cluster_matrix:
 
-            if preprocessing == 'Concatenate' or 'Density':
+            if preprocessing == 'Concatenate' or preprocessing == 'Density':
 
                 line_parameters = str(cluster_list)
-
                 make_prepro_evaluate(df_train, df_test, df_out, preprocessing, line_parameters, file_name, path_results,
                                      models, cluster_list=cluster_list)
             else:
