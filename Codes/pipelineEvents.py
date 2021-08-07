@@ -742,7 +742,7 @@ def make_prepro_evaluate(df_train, df_test, df_out, preprocessing, line_paramete
 
 
 def preprocessing_evaluate(datasets_dictionary, dataset, preprocessing, models):
-    path_results = '../results/'
+    path_results = '../results/50/'
     num_train = 50
     cluster_matrix = [[3, 6, 9, 12], [2, 4, 6, 8, 10], [3, 5, 7, 9, 11], [2, 3, 4, 5, 6, 7, 8, 9, 10, 11]]
     epochs = [5, 10, 25, 50]
