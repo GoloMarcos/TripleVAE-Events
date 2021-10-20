@@ -1,0 +1,99 @@
+\documentclass[a4paper,10pt]{article}
+\usepackage{graphicx}
+\usepackage{lscape}
+\title{Output tables for the test of Multiple comparisons.}
+\author{}
+\date{\today}
+\begin{document}
+\begin{landscape}
+\pagestyle{empty}
+\maketitle
+\thispagestyle{empty}
+\section{Average rankings of Friedman test}
+
+
+
+Average ranks obtained by applying the Friedman procedure
+
+\begin{table}[!htp]
+\centering
+\begin{tabular}{|c|c|}\hline
+Algorithm&Ranking\\\hline
+Concatenate & 3.28\\
+AE & 2.8\\
+VAE & 2.52\\
+TripleVAE & 1.4\\
+\hline
+\end{tabular}
+\caption{Average Rankings of the algorithms}
+\end{table}
+
+Friedman statistic considering reduction performance (distributed according to chi-square with 3 degrees of freedom: 57.264.
+
+P-value computed by Friedman Test: 3.3137603772104285E-11.\newline
+
+
+
+\pagebreak
+
+\section{Post hoc comparisons}
+
+Results achieved on post hoc comparisons for $\alpha = 0.05$, $\alpha = 0.10$ and adjusted p-values.
+
+\subsection{P-values for $\alpha=0.05$}
+
+\begin{table}[!htp]
+\centering\scriptsize
+\begin{tabular}{cccc}
+$i$&algorithms&$z=(R_0 - R_i)/SE$&$p$\\
+\hline6&Concatenate vs. TripleVAE&7.281209&0\\
+5&AE vs. TripleVAE&5.422177&0\\
+4&VAE vs. TripleVAE&4.337741&0.000014\\
+3&Concatenate vs. VAE&2.943467&0.003246\\
+2&Concatenate vs. AE&1.859032&0.063023\\
+1&AE vs. VAE&1.084435&0.278172\\
+\hline
+\end{tabular}
+\caption{P-values Table for $\alpha=0.05$}
+\end{table}Nemenyi's procedure rejects those hypotheses that have an unadjusted p-value $\le0.008333$.
+
+\pagebreak
+
+\subsection{P-values for $\alpha=0.10$}
+
+\begin{table}[!htp]
+\centering\scriptsize
+\begin{tabular}{cccc}
+$i$&algorithms&$z=(R_0 - R_i)/SE$&$p$\\
+\hline6&Concatenate vs. TripleVAE&7.281209&0\\
+5&AE vs. TripleVAE&5.422177&0\\
+4&VAE vs. TripleVAE&4.337741&0.000014\\
+3&Concatenate vs. VAE&2.943467&0.003246\\
+2&Concatenate vs. AE&1.859032&0.063023\\
+1&AE vs. VAE&1.084435&0.278172\\
+\hline
+\end{tabular}
+\caption{P-values Table for $\alpha=0.10$}
+\end{table}Nemenyi's procedure rejects those hypotheses that have an unadjusted p-value $\le0.016667$.
+
+\pagebreak
+
+\subsection{Adjusted p-values}
+
+\begin{table}[!htp]
+\centering\scriptsize
+\begin{tabular}{cccc}
+i&hypothesis&unadjusted $p$&$p_{Neme}$\\
+\hline1&Concatenate vs .TripleVAE&0&0\\
+2&AE vs .TripleVAE&0&0\\
+3&VAE vs .TripleVAE&0.000014&0.000086\\
+4&Concatenate vs .VAE&0.003246&0.019473\\
+5&Concatenate vs .AE&0.063023&0.378136\\
+6&AE vs .VAE&0.278172&1.669031\\
+\hline
+\end{tabular}
+\caption{Adjusted $p$-values}
+\end{table}
+
+\end{landscape}
+\end{document}
