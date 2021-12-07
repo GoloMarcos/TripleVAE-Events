@@ -1,4 +1,4 @@
-# Códigos e Resultados do Capitulo 6 da Dissertação.
+# Códigos e Resultados do Capitulo 5 da Dissertação.
 
 # Capitulo 5: TRIPLE-VAE: A TRIPLE VARIATIONAL AUTOENCODER TO REPRESENT EVENTS IN ONE-CLASS EVENT DETECTION
 
